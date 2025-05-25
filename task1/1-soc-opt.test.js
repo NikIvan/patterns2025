@@ -1,7 +1,6 @@
 'use strict';
 
 const assert = require('node:assert');
-const { inspect } = require('node:util');
 const {
   main,
   parseNumberFromString,
@@ -9,6 +8,8 @@ const {
   numberSorter,
   AGGREGATION_MAX,
 } = require('./1-soc-opt.js');
+
+const greenText = (value) => `\x1b[32m${value}\x1b[0m`;
 
 const data = `city,population,area,density,country
   Shanghai,24256800,6340,3826,China
@@ -25,7 +26,7 @@ const data = `city,population,area,density,country
 const columnDefinitions = {
   city: {
     label: 'City',
-    format: (value) => value.padEnd(18),
+    format: (value) => value.padEnd(15),
   },
   population: {
     label: 'Population',
@@ -48,7 +49,7 @@ const columnDefinitions = {
   },
   country: {
     label: 'Country',
-    format: (value) => value.padEnd(18),
+    format: (value) => value.padStart(18),
   },
 };
 
@@ -57,7 +58,7 @@ const calculableColumnDefinitions = {
     label: 'Density %',
     getValue: (row, stats) =>
       Math.round((row.density * 100) / stats.density[AGGREGATION_MAX]),
-    format: (value) => `${formatNumber(value)}%`.padStart(9),
+    format: (value) => `${formatNumber(value)}%`.padStart(7),
   },
 };
 
@@ -70,29 +71,16 @@ const actualOutput = main({
 
 
 const expectedOutput = [
-  'Lagos             16060303    1171   13712           Nigeria   100%',
-  'Delhi             16787941    1484   11313             India    83%',
-  'New York City      8537673     784   10892     United States    79%',
-  'Sao Paulo         12038175    1521    7914            Brazil    58%',
-  'Tokyo             13513734    2191    6168             Japan    45%',
-  'Mexico City        8874724    1486    5974            Mexico    44%',
-  'London             8673713    1572    5431    United Kingdom    40%',
-  'Shanghai          24256800    6340    3826             China    28%',
-  'Istanbul          14160467    5461    2593            Turkey    19%',
+  'Lagos            16060303    1171   13712           Nigeria   100%',
+  'Delhi            16787941    1484   11313             India    83%',
+  'New York City     8537673     784   10892     United States    79%',
+  'Sao Paulo        12038175    1521    7914            Brazil    58%',
+  'Tokyo            13513734    2191    6168             Japan    45%',
+  'Mexico City       8874724    1486    5974            Mexico    44%',
+  'London            8673713    1572    5431    United Kingdom    40%',
+  'Shanghai         24256800    6340    3826             China    28%',
+  'Istanbul         14160467    5461    2593            Turkey    19%',
 ];
-
-console.log(inspect(expectedOutput, {
-  showHidden: false,
-  depth: 4,
-  compact: false,
-}));
-console.log('----------');
-console.log(inspect(actualOutput, {
-  showHidden: false,
-  depth: 4,
-  compact: false,
-}));
-console.log('----------');
 
 if (!Array.isArray(actualOutput)) {
   throw new TypeError('Array expected');
@@ -105,5 +93,7 @@ if (actualOutput.length !== expectedOutput.length) {
 }
 
 for (let i = 0; i < actualOutput.length; i += 1) {
-  assert.strictEqual(expectedOutput[i], actualOutput[i]);
+    assert.strictEqual(expectedOutput[i], actualOutput[i]);
 }
+
+console.log(greenText('Tests passed'));

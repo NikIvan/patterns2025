@@ -242,6 +242,7 @@ const parseData = (
 // Formatting
 const formatRow = (row, columnDefinitions, calculableColumnDefinitions) => {
   const keys = Object.keys(row);
+
   return keys.map((key) => {
     const columnDefinition = columnDefinitions[key] ||
       calculableColumnDefinitions[key] ||
