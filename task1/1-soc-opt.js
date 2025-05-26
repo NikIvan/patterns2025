@@ -1,5 +1,12 @@
 'use strict';
 
+const { stringSorter } = require('./utilities/sorting.utilities');
+const {
+  identityFn,
+  transformNumberToString,
+} = require('./utilities/transform.utilities');
+const { ORDER } = require('./constants');
+
 // Tasks for rewriting:
 //   - Watch week 1 lectures about SoC, SRP, code characteristics, V8
 //   - Apply optimizations of computing resources: processor, memory
@@ -15,37 +22,6 @@
 
 const EOL = '\n';
 
-const identityFn = (value) => value;
-const parseNumberFromString = (value) => +value;
-const formatNumber = (value) => value.toString();
-
-const ORDER = {
-  ASC: 'asc',
-  DESC: 'desc',
-};
-
-const numberSorter = (a, b, sortOrder) => {
-  if (a < b) {
-    return sortOrder === ORDER.DESC ? 1 : -1;
-  }
-
-  if (a > b) {
-    return sortOrder === ORDER.DESC ? -1 : 1;
-  }
-
-  return 0;
-};
-
-const stringSorter = (a, b, sortOrder) => {
-  let result = a.localeCompare(b);
-
-  if (sortOrder === ORDER.DESC) {
-    result *= -1;
-  }
-
-  return result;
-};
-
 const defaultColumnDefinition = {
   label: undefined,
   parse: identityFn,
@@ -53,11 +29,15 @@ const defaultColumnDefinition = {
   sorterFn: stringSorter,
 };
 
+Object.freeze(defaultColumnDefinition);
+
 const AGGREGATION_MAX = 'max';
 
 const aggregationFunctions = {
   [AGGREGATION_MAX]: (a, b) => Math.max(a, b),
 };
+
+Object.freeze(aggregationFunctions);
 
 const validateCSVString = (input) => {
   if (typeof input !== 'string') {
@@ -305,10 +285,6 @@ const main = ({
 
 module.exports = {
   main,
-  identityFn,
-  parseNumberFromString,
-  formatNumber,
-  stringSorter,
-  numberSorter,
+  formatNumber: transformNumberToString,
   AGGREGATION_MAX,
 };

@@ -3,11 +3,14 @@
 const assert = require('node:assert');
 const {
   main,
-  parseNumberFromString,
-  formatNumber,
-  numberSorter,
   AGGREGATION_MAX,
 } = require('./1-soc-opt.js');
+
+const { numberSorter } = require('./utilities/sorting.utilities.js');
+const {
+  transformStringToNumber,
+  transformNumberToString,
+} = require('./utilities/transform.utilities');
 
 const greenText = (value) => `\x1b[32m${value}\x1b[0m`;
 
@@ -30,20 +33,20 @@ const columnDefinitions = {
   },
   population: {
     label: 'Population',
-    parse: parseNumberFromString,
-    format: (value) => formatNumber(value).padStart(10),
+    parse: transformStringToNumber,
+    format: (value) => transformNumberToString(value).padStart(10),
     sorterFn: numberSorter,
   },
   area: {
     label: 'Area',
-    parse: parseNumberFromString,
-    format: (value) => formatNumber(value).padStart(8),
+    parse: transformStringToNumber,
+    format: (value) => transformNumberToString(value).padStart(8),
     sorterFn: numberSorter,
   },
   density: {
     label: 'Density',
-    parse: parseNumberFromString,
-    format: (value) => formatNumber(value).padStart(8),
+    parse: transformStringToNumber,
+    format: (value) => transformNumberToString(value).padStart(8),
     sorterFn: numberSorter,
     aggregation: [AGGREGATION_MAX],
   },
@@ -58,7 +61,7 @@ const calculableColumnDefinitions = {
     label: 'Density %',
     getValue: (row, stats) =>
       Math.round((row.density * 100) / stats.density[AGGREGATION_MAX]),
-    format: (value) => `${formatNumber(value)}%`.padStart(7),
+    format: (value) => `${transformNumberToString(value)}%`.padStart(7),
   },
 };
 
@@ -93,7 +96,11 @@ if (actualOutput.length !== expectedOutput.length) {
 }
 
 for (let i = 0; i < actualOutput.length; i += 1) {
-    assert.strictEqual(expectedOutput[i], actualOutput[i]);
+  assert.strictEqual(expectedOutput[i], actualOutput[i]);
 }
 
 console.log(greenText('Tests passed'));
+
+for (const row of actualOutput) {
+  console.log(row);
+}
