@@ -1,28 +1,30 @@
 'use strict';
 
-const { ORDER } = require('../constants');
-
-const numberSorter = (a, b, sortOrder) => {
-  if (a < b) {
-    return sortOrder === ORDER.DESC ? 1 : -1;
+/**
+ *
+ * @param {Number} a
+ * @param {Number} b
+ * @returns {Number}
+ */
+const numberSorter = (a, b) => {
+  if (a > b) {
+    return 1;
   }
 
-  if (a > b) {
-    return sortOrder === ORDER.DESC ? -1 : 1;
+  if (a < b) {
+    return -1;
   }
 
   return 0;
 };
 
-const stringSorter = (a, b, sortOrder) => {
-  let result = a.localeCompare(b);
-
-  if (sortOrder === ORDER.DESC) {
-    result *= -1;
-  }
-
-  return result;
-};
+/**
+ *
+ * @param {String} a
+ * @param {String} b
+ * @returns
+ */
+const stringSorter = (a, b) => a.toUpperCase().localeCompare(b.toUpperCase());
 
 module.exports = {
   numberSorter,

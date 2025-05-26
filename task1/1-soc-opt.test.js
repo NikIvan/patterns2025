@@ -85,6 +85,10 @@ const expectedOutput = [
   'Istanbul         14160467    5461    2593            Turkey    19%',
 ];
 
+for (const row of actualOutput) {
+  console.log(row);
+}
+
 if (!Array.isArray(actualOutput)) {
   throw new TypeError('Array expected');
 }
@@ -101,6 +105,3 @@ for (let i = 0; i < actualOutput.length; i += 1) {
 
 console.log(greenText('Tests passed'));
 
-for (const row of actualOutput) {
-  console.log(row);
-}

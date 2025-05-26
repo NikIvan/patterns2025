@@ -266,10 +266,15 @@ const main = ({
         defaultColumnDefinition.sorterFn;
 
     table.sort((rowA, rowB) => {
-      const valueA = rowA[sortBy];
-      const valueB = rowB[sortBy];
+      let valueA = rowA[sortBy];
+      let valueB = rowB[sortBy];
 
-      return sorterFn(valueA, valueB, sortOrder);
+      if (sortOrder === ORDER.DESC) {
+        valueA = rowB[sortBy];
+        valueB = rowA[sortBy];
+      }
+
+      return sorterFn(valueA, valueB);
     });
   }
 
