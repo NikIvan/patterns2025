@@ -10,7 +10,9 @@ const { numberSorter } = require('./utilities/sorting.utilities.js');
 const {
   transformStringToNumber,
   transformNumberToString,
-} = require('./utilities/transform.utilities');
+} = require('./utilities/transform.utilities.js');
+
+const { ORDER } = require('constants.js');
 
 const greenText = (value) => `\x1b[32m${value}\x1b[0m`;
 
@@ -62,6 +64,7 @@ const calculableColumnDefinitions = {
     getValue: (row, stats) =>
       Math.round((row.density * 100) / stats.density[AGGREGATION_MAX]),
     format: (value) => `${transformNumberToString(value)}%`.padStart(7),
+    sorterFn: numberSorter,
   },
 };
 
@@ -70,6 +73,8 @@ const actualOutput = main({
   columnDefinitions,
   calculableColumnDefinitions,
   length: 10,
+  sortBy: 'densityPercentage',
+  sortOrder: ORDER.DESC,
 });
 
 
@@ -89,15 +94,8 @@ for (const row of actualOutput) {
   console.log(row);
 }
 
-if (!Array.isArray(actualOutput)) {
-  throw new TypeError('Array expected');
-}
-
-if (actualOutput.length !== expectedOutput.length) {
-  throw new Error(
-    `Wrong array length: ${actualOutput.length} !== ${expectedOutput.length}`,
-  );
-}
+assert.strictEqual(Array.isArray(actualOutput), true);
+assert.strictEqual(actualOutput.length, expectedOutput.length);
 
 for (let i = 0; i < actualOutput.length; i += 1) {
   assert.strictEqual(expectedOutput[i], actualOutput[i]);

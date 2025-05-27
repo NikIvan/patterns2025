@@ -129,9 +129,14 @@ const validateCalculableColumnDefinitions = (calculableColumnDefinitions) => {
   });
 };
 
-const validateDelimiter = (delimiter) => {
+const validateDelimiters = (delimiter, eolDelimiter) => {
   if (typeof delimiter !== 'string') {
     throw new Error('Invalid delimiter');
+  }
+
+  if (typeof eolDelimiter !== 'string' &&
+      eolDelimiter !== undefined) {
+    throw new Error('Invalid EOL delimiter');
   }
 };
 
@@ -146,7 +151,11 @@ const validateDataLengthModifiers = (start, length) => {
   }
 };
 
-const parseCSVToArraysOfStrings = (input, delimiter) => input.split(EOL)
+const parseCSVToArraysOfStrings = (
+  input,
+  delimiter,
+  eolDelimiter,
+) => input.trim().split(eolDelimiter)
     .map(
       (row) => row.trim()
         .split(delimiter)
@@ -158,10 +167,15 @@ const parseCSVToArraysOfStrings = (input, delimiter) => input.split(EOL)
 const parseData = (
   input,
   delimiter,
+  eolDelimiter,
   columnDefinitions,
   calculableColumnDefinitions,
 ) => {
-  const [headers, ...data] = parseCSVToArraysOfStrings(input, delimiter);
+  const [headers, ...data] = parseCSVToArraysOfStrings(
+    input,
+    delimiter,
+    eolDelimiter,
+  );
   const table = [];
   const stats = {};
 
@@ -237,15 +251,16 @@ const main = ({
   columnDefinitions = {},
   calculableColumnDefinitions = {},
   delimiter = ',',
+  eolDelimiter = EOL,
   start = 0,
   length = 10,
-  sortBy = 'density',
-  sortOrder = ORDER.DESC,
+  sortBy,
+  sortOrder = ORDER.ASC,
 }) => {
   validateCSVString(data);
   validateColumnDefinitions(columnDefinitions);
   validateCalculableColumnDefinitions(calculableColumnDefinitions);
-  validateDelimiter(delimiter);
+  validateDelimiters(delimiter, eolDelimiter);
   validateDataLengthModifiers(start, length);
 
   if (data.length === 0) {
@@ -255,6 +270,7 @@ const main = ({
   let [table] = parseData(
     data,
     delimiter,
+    eolDelimiter,
     columnDefinitions,
     calculableColumnDefinitions,
   );
@@ -263,7 +279,8 @@ const main = ({
 
   if (sortBy !== undefined) {
     const sorterFn = columnDefinitions[sortBy]?.sorterFn ||
-        defaultColumnDefinition.sorterFn;
+      calculableColumnDefinitions[sortBy]?.sorterFn ||
+      defaultColumnDefinition.sorterFn;
 
     table.sort((rowA, rowB) => {
       let valueA = rowA[sortBy];
