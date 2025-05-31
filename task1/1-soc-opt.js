@@ -1,11 +1,13 @@
 'use strict';
 
-const { stringSorter } = require('./utilities/sorting.utilities');
+const { stringSorter } = require('./utilities/sorting.utilities.js');
 const {
   identityFn,
   transformNumberToString,
-} = require('./utilities/transform.utilities');
-const { ORDER } = require('./constants');
+} = require('./utilities/transform.utilities.js');
+const { ORDER } = require('./constants.js');
+
+const parseCSVToArraysOfStrings = require('./parse');
 
 // Tasks for rewriting:
 //   - Watch week 1 lectures about SoC, SRP, code characteristics, V8
@@ -32,9 +34,11 @@ const defaultColumnDefinition = {
 Object.freeze(defaultColumnDefinition);
 
 const AGGREGATION_MAX = 'max';
+const AGGREGATION_SUM = 'sum';
 
 const aggregationFunctions = {
   [AGGREGATION_MAX]: (a, b) => Math.max(a, b),
+  [AGGREGATION_SUM]: (a, b) => a + b,
 };
 
 Object.freeze(aggregationFunctions);
@@ -45,50 +49,44 @@ const validateCSVString = (input) => {
   }
 };
 
+/**
+ *
+ * @param {Object} object
+ * @param {Object} validators
+ */
+const validateObject = (object, validators) => {
+  if (typeof object !== 'object') {
+    throw new Error('Invalid column definition');
+  }
+
+  Object.keys(object).forEach((key) => {
+    if (validators[key]) {
+      const validate = validators[key];
+
+      if (!validate(object[key])) {
+        throw new Error(
+          `Invalid column definition ${key} at 
+          ${JSON.stringify(object)}
+        `);
+      }
+    }
+  });
+};
+
 const validateColumnDefinitions = (columnDefinitions) => {
   if (typeof columnDefinitions !== 'object') {
     throw new Error('Invalid column definitions');
   }
 
+  const columnDefinitionValidators = {
+    label: (value) => typeof value === 'string' || value === undefined,
+    parse: (value) => typeof value === 'function' || value === undefined,
+    format: (value) => typeof value === 'function' || value === undefined,
+    aggregation: (value) => Array.isArray(value) || value === undefined,
+  };
+
   Object.values(columnDefinitions).forEach((columnDefinition) => {
-    if (typeof columnDefinition !== 'object') {
-      throw new Error('Invalid column definition');
-    }
-
-    const { label, parse, format, aggregation } = columnDefinition;
-
-    if (typeof label !== 'string' &&
-      label !== undefined
-    ) {
-      throw new Error(
-        `Invalid column definition label at 
-        ${JSON.stringify(columnDefinition)}
-      `);
-    }
-
-    if (typeof parse !== 'function' &&
-      aggregation !== undefined) {
-      throw new Error(`
-        Invalid column definition parser at 
-        ${JSON.stringify(columnDefinition)}
-      `);
-    }
-
-    if (typeof format !== 'function' &&
-      aggregation !== undefined) {
-      throw new Error(`
-        Invalid column definition formatter at 
-        ${JSON.stringify(columnDefinition)}
-      `);
-    }
-
-    if (!Array.isArray(aggregation) &&
-      aggregation !== undefined) {
-      throw new Error(`
-        Invalid column definition aggregation at 
-        ${JSON.stringify(columnDefinition)}
-      `);
-    }
+    validateObject(columnDefinition, columnDefinitionValidators);
   });
 };
 
@@ -97,35 +95,15 @@ const validateCalculableColumnDefinitions = (calculableColumnDefinitions) => {
     throw new Error('Invalid calculable column definitions');
   }
 
+  const columnDefinitionValidators = {
+    label: (value) => typeof value === 'string' || value === undefined,
+    getValue: (value) => typeof value === 'function',
+    format: (value) => typeof value === 'function',
+  };
+
+
   Object.values(calculableColumnDefinitions).forEach((columnDefinition) => {
-    if (typeof columnDefinition !== 'object') {
-      throw new Error('Invalid calculable column definition');
-    }
-
-    const { label, getValue, format } = columnDefinition;
-
-    if (typeof label !== 'string' &&
-      label !== undefined
-    ) {
-      throw new Error(
-        `Invalid calculable column definition label at 
-        ${JSON.stringify(columnDefinition)}
-      `);
-    }
-
-    if (typeof getValue !== 'function') {
-      throw new Error(`
-        Invalid calculable column definition getter at 
-        ${JSON.stringify(columnDefinition)}
-      `);
-    }
-
-    if (typeof format !== 'function') {
-      throw new Error(`
-        Invalid calculable column definition formatter at 
-        ${JSON.stringify(columnDefinition)}
-      `);
-    }
+    validateObject(columnDefinition, columnDefinitionValidators);
   });
 };
 
@@ -151,35 +129,40 @@ const validateDataLengthModifiers = (start, length) => {
   }
 };
 
-const parseCSVToArraysOfStrings = (
-  input,
-  delimiter,
-  eolDelimiter,
-) => input.trim().split(eolDelimiter)
-    .map(
-      (row) => row.trim()
-        .split(delimiter)
-        .map((cell) => cell.trim(),
-      ),
-    );
+const validateSortingParameters = (sortBy, sortOrder) => {
+  if (typeof sortBy !== 'string' &&
+      sortBy !== undefined) {
+    throw new Error('Invalid sortBy parameter');
+  }
+
+  const isSortOrderPresent = sortOrder !== undefined;
+  const isValidOrder = Object.values(ORDER)
+    .some((value) => sortOrder === value);
+
+    if (isSortOrderPresent && !isValidOrder) {
+    throw new Error('Invalid sortOrder parameter');
+  }
+};
+
+const validateTableIntegrity = (headers, rows) => {
+  const len = headers.length;
+
+  rows.forEach((row) => {
+    if (row.length !== len) {
+      throw new Error('Data integrity failed');
+    }
+  });
+};
 
 // Parsing
 const parseData = (
-  input,
-  delimiter,
-  eolDelimiter,
+  headers,
+  rows,
   columnDefinitions,
-  calculableColumnDefinitions,
 ) => {
-  const [headers, ...data] = parseCSVToArraysOfStrings(
-    input,
-    delimiter,
-    eolDelimiter,
-  );
   const table = [];
-  const stats = {};
 
-  for (const row of data) {
+  for (const row of rows) {
     const rowObject = {};
 
     for (let i = 0; i < headers.length; i++) {
@@ -190,47 +173,72 @@ const parseData = (
         columnDefinitions[key],
       );
 
-      const { parse, aggregation } = columnDefinition;
+      const { parse } = columnDefinition;
 
       const value = parse(row[i]);
       rowObject[key] = value;
+    }
 
-      if (!Array.isArray(aggregation) || aggregation.length === 0) {
-        continue;
-      }
+    table.push(rowObject);
+  };
 
+  return table;
+};
+
+const getTableStats = (table, columnDefinitions) => {
+  const stats = {};
+
+  const keysWithAggregation = Object.keys(columnDefinitions)
+    .filter((key) => {
+      const { aggregation } = columnDefinitions[key];
+      return Array.isArray(aggregation) && aggregation.length > 0;
+    });
+
+  for (const key of keysWithAggregation) {
+    const { aggregation } = columnDefinitions[key];
+
+    for (const row of table) {
       for (const aggregationType of aggregation) {
         if (!stats[key]) {
           stats[key] = {};
         }
 
         if (!stats[key][aggregationType]) {
-          stats[key][aggregationType] = value;
+          stats[key][aggregationType] = row[key];
         } else {
           stats[key][aggregationType] = aggregationFunctions[aggregationType](
             stats[key][aggregationType],
-            value,
+            row[key],
           );
         }
       }
     }
+  }
 
-    table.push(rowObject);
-  };
+  return stats;
+};
 
+const getTableWithCalculableColumns = (
+  originalTable,
+  stats,
+  calculableColumnDefinitions,
+) => {
+  const table = [];
   const calculableColumns = Object.keys(calculableColumnDefinitions);
 
   for (const key of calculableColumns) {
     const columnDefinition = calculableColumnDefinitions[key];
     const { getValue } = columnDefinition;
 
-    for (const row of table) {
+    for (const row of originalTable) {
       const calculatedValue = getValue(row, stats);
-      row[key] = calculatedValue;
+      const fullRow = Object.assign({}, row);
+      fullRow[key] = calculatedValue;
+      table.push(fullRow);
     }
   }
 
-  return [table, stats];
+  return table;
 };
 
 // Formatting
@@ -262,16 +270,31 @@ const main = ({
   validateCalculableColumnDefinitions(calculableColumnDefinitions);
   validateDelimiters(delimiter, eolDelimiter);
   validateDataLengthModifiers(start, length);
+  validateSortingParameters(sortBy, sortOrder);
 
   if (data.length === 0) {
-    return '';
+    return [];
   }
 
-  let [table] = parseData(
+  const [headers, ...rows] = parseCSVToArraysOfStrings(
     data,
     delimiter,
     eolDelimiter,
+  );
+
+  validateTableIntegrity(headers, rows);
+
+  const originalTable = parseData(
+    headers,
+    rows,
     columnDefinitions,
+  );
+
+  const stats = getTableStats(originalTable, columnDefinitions);
+
+  let table = getTableWithCalculableColumns(
+    originalTable,
+    stats,
     calculableColumnDefinitions,
   );
 

@@ -12,7 +12,7 @@ const {
   transformNumberToString,
 } = require('./utilities/transform.utilities.js');
 
-const { ORDER } = require('constants.js');
+const { ORDER } = require('./constants.js');
 
 const greenText = (value) => `\x1b[32m${value}\x1b[0m`;
 
