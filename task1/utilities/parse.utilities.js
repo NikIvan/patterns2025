@@ -12,4 +12,6 @@ const parseCSVToArraysOfStrings = (
       ),
     );
 
-module.exports = parseCSVToArraysOfStrings;
+module.exports = {
+  parseCSVToArraysOfStrings,
+};

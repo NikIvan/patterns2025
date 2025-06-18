@@ -8,10 +8,14 @@ const {
   AGGREGATION_MAX,
 } = require('./1-soc-opt.js');
 
-const { numberSorter } = require('./utilities/sorting.utilities.js');
+const {
+  numberSorter,
+  stringSorter,
+} = require('./utilities/sorting.utilities.js');
 const {
   transformStringToNumber,
   transformNumberToString,
+  identityFn,
 } = require('./utilities/transform.utilities.js');
 
 const { ORDER } = require('./constants.js');
@@ -32,7 +36,9 @@ test('Success scenario', () => {
   const columnDefinitions = {
     city: {
       label: 'City',
+      parse: identityFn,
       format: (value) => value.padEnd(15),
+      sorterFn: stringSorter,
     },
     population: {
       label: 'Population',
@@ -55,7 +61,9 @@ test('Success scenario', () => {
     },
     country: {
       label: 'Country',
+      parse: identityFn,
       format: (value) => value.padStart(18),
+      sorterFn: stringSorter,
     },
   };
 
@@ -77,7 +85,6 @@ test('Success scenario', () => {
     sortBy: 'densityPercentage',
     sortOrder: ORDER.DESC,
   });
-
 
   const expectedOutput = [
     'Lagos            16060303    1171   13712           Nigeria   100%',

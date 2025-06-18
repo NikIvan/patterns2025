@@ -1,13 +1,14 @@
 'use strict';
 
 const { stringSorter } = require('./utilities/sorting.utilities.js');
+const { parseCSVToArraysOfStrings } = require(
+  './utilities/parse.utilities.js',
+);
 const {
   identityFn,
-  transformNumberToString,
 } = require('./utilities/transform.utilities.js');
 const { ORDER } = require('./constants.js');
 
-const parseCSVToArraysOfStrings = require('./parse');
 
 // Tasks for rewriting:
 //   - Watch week 1 lectures about SoC, SRP, code characteristics, V8
@@ -24,24 +25,39 @@ const parseCSVToArraysOfStrings = require('./parse');
 
 const EOL = '\n';
 
-const defaultColumnDefinition = {
+const defaultColumnDefinition = Object.freeze({
   label: undefined,
   parse: identityFn,
   format: (value) => value.padEnd(18),
   sorterFn: stringSorter,
-};
+});
 
-Object.freeze(defaultColumnDefinition);
+const defaultCalculableColumnDefinition = Object.freeze({
+  label: undefined,
+  getValue: () => undefined,
+  format: (value) => value.toString().padEnd(18),
+  sorterFn: stringSorter,
+});
+
+const mergeColumnDefinitions = (
+  definitions,
+  defaultDefinition = {},
+) => {
+  const res = Object.keys(definitions).reduce((acc, key) => {
+    acc[key] = Object.assign({}, defaultDefinition, definitions[key]);
+    return acc;
+  }, {});
+
+  return Object.freeze(res);
+};
 
 const AGGREGATION_MAX = 'max';
 const AGGREGATION_SUM = 'sum';
 
-const aggregationFunctions = {
+const aggregationFunctions = Object.freeze({
   [AGGREGATION_MAX]: (a, b) => Math.max(a, b),
   [AGGREGATION_SUM]: (a, b) => a + b,
-};
-
-Object.freeze(aggregationFunctions);
+});
 
 const validateCSVString = (input) => {
   if (typeof input !== 'string') {
@@ -73,37 +89,36 @@ const validateObject = (object, validators) => {
   });
 };
 
+const columnDefinitionValidators = Object.freeze({
+  label: (value) => typeof value === 'string' || value === undefined,
+  parse: (value) => typeof value === 'function' || value === undefined,
+  format: (value) => typeof value === 'function' || value === undefined,
+  aggregation: (value) => Array.isArray(value) || value === undefined,
+});
+
 const validateColumnDefinitions = (columnDefinitions) => {
   if (typeof columnDefinitions !== 'object') {
     throw new Error('Invalid column definitions');
   }
-
-  const columnDefinitionValidators = {
-    label: (value) => typeof value === 'string' || value === undefined,
-    parse: (value) => typeof value === 'function' || value === undefined,
-    format: (value) => typeof value === 'function' || value === undefined,
-    aggregation: (value) => Array.isArray(value) || value === undefined,
-  };
 
   Object.values(columnDefinitions).forEach((columnDefinition) => {
     validateObject(columnDefinition, columnDefinitionValidators);
   });
 };
 
+const calculableColumnDefinitionValidators = Object.freeze({
+  label: (value) => typeof value === 'string' || value === undefined,
+  getValue: (value) => typeof value === 'function',
+  format: (value) => typeof value === 'function',
+});
+
 const validateCalculableColumnDefinitions = (calculableColumnDefinitions) => {
   if (typeof calculableColumnDefinitions !== 'object') {
     throw new Error('Invalid calculable column definitions');
   }
 
-  const columnDefinitionValidators = {
-    label: (value) => typeof value === 'string' || value === undefined,
-    getValue: (value) => typeof value === 'function',
-    format: (value) => typeof value === 'function',
-  };
-
-
   Object.values(calculableColumnDefinitions).forEach((columnDefinition) => {
-    validateObject(columnDefinition, columnDefinitionValidators);
+    validateObject(columnDefinition, calculableColumnDefinitionValidators);
   });
 };
 
@@ -250,31 +265,39 @@ const formatRow = (row, columnDefinitions, calculableColumnDefinitions) => {
       calculableColumnDefinitions[key] ||
       defaultColumnDefinition;
 
-    return columnDefinition.format(row[key]);
+    const { format } = columnDefinition;
+
+    return format(row[key]);
   }).join('');
 };
 
 const main = ({
   data,
-  columnDefinitions = {},
-  calculableColumnDefinitions = {},
-  delimiter = ',',
-  eolDelimiter = EOL,
-  start = 0,
-  length = 10,
+  columnDefinitions,
+  calculableColumnDefinitions,
+  delimiter,
+  eolDelimiter,
+  start,
+  length,
   sortBy,
-  sortOrder = ORDER.ASC,
+  sortOrder,
 }) => {
-  validateCSVString(data);
-  validateColumnDefinitions(columnDefinitions);
-  validateCalculableColumnDefinitions(calculableColumnDefinitions);
-  validateDelimiters(delimiter, eolDelimiter);
-  validateDataLengthModifiers(start, length);
-  validateSortingParameters(sortBy, sortOrder);
+  const __columnDefinitions = mergeColumnDefinitions(
+    columnDefinitions,
+    defaultColumnDefinition,
+  );
+
+  const __calculableColumnDefinitions = mergeColumnDefinitions(
+    calculableColumnDefinitions,
+    defaultCalculableColumnDefinition,
+  );
 
   if (data.length === 0) {
     return [];
   }
+
+  // At this point, we can be sure that data is a valid CSV string
+  // And all column definitions have all necessary properties
 
   const [headers, ...rows] = parseCSVToArraysOfStrings(
     data,
@@ -287,23 +310,25 @@ const main = ({
   const originalTable = parseData(
     headers,
     rows,
-    columnDefinitions,
+    __columnDefinitions,
   );
 
-  const stats = getTableStats(originalTable, columnDefinitions);
+  const stats = getTableStats(originalTable, __columnDefinitions);
 
   let table = getTableWithCalculableColumns(
     originalTable,
     stats,
-    calculableColumnDefinitions,
+    __calculableColumnDefinitions,
   );
 
   table = table.slice(start, start + length - 1);
 
   if (sortBy !== undefined) {
-    const sorterFn = columnDefinitions[sortBy]?.sorterFn ||
-      calculableColumnDefinitions[sortBy]?.sorterFn ||
-      defaultColumnDefinition.sorterFn;
+    const columnDefinition = __columnDefinitions[sortBy] ||
+    __calculableColumnDefinitions[sortBy] ||
+    defaultColumnDefinition;
+
+    const { sorterFn } = columnDefinition;
 
     table.sort((rowA, rowB) => {
       let valueA = rowA[sortBy];
@@ -321,15 +346,46 @@ const main = ({
   const result = table.map(
     (row) => formatRow(
       row,
-      columnDefinitions,
-      calculableColumnDefinitions,
+      __columnDefinitions,
+      __calculableColumnDefinitions,
     ));
 
   return result;
 };
 
+const publicMain = ({
+  data,
+  columnDefinitions = {},
+  calculableColumnDefinitions = {},
+  delimiter = ',',
+  eolDelimiter = EOL,
+  start = 0,
+  length = 10,
+  sortBy,
+  sortOrder = ORDER.ASC,
+}) => {
+  validateCSVString(data);
+  validateColumnDefinitions(columnDefinitions);
+  validateCalculableColumnDefinitions(calculableColumnDefinitions);
+  validateDelimiters(delimiter, eolDelimiter);
+  validateDataLengthModifiers(start, length);
+  validateSortingParameters(sortBy, sortOrder);
+
+  return main({
+    data,
+    columnDefinitions,
+    calculableColumnDefinitions,
+    delimiter,
+    eolDelimiter,
+    start,
+    length,
+    sortBy,
+    sortOrder,
+  });
+};
+
 module.exports = {
-  main,
-  formatNumber: transformNumberToString,
+  main: publicMain,
   AGGREGATION_MAX,
+  AGGREGATION_SUM,
 };
