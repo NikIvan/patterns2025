@@ -1,11 +1,9 @@
 'use strict';
 
-const ORDER = {
+const ORDER = Object.freeze({
   ASC: 'asc',
   DESC: 'desc',
-};
-
-Object.freeze(ORDER);
+});
 
 module.exports = {
 	ORDER,

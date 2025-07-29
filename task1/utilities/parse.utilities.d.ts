@@ -1,5 +1,5 @@
 export function parseCSVToArraysOfStrings(
   input: string,
-  delimiter: string,
-  eolDelimiter: string
+  separator: string,
+  eolSeparator: string
 ): string[][];
