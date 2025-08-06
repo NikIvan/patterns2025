@@ -29,35 +29,15 @@ const data = `city,population,area,density,country
   New York City,8537673,784,10892,United States
   Bangkok,8280925,1569,5279,Thailand`;
 
-const EOL = '\n';
-const SEPARATOR = ',';
+const tap = (fn) => (...args) => {
+  fn(...args);
+  return args[0];
+};
 
-const columnsConfig = Object.freeze({
-  city: Object.freeze({
-    format: (value) => value.toString().padEnd(18),
-  }),
-  population: Object.freeze({
-    format: (value) => value.toString().padStart(10),
-  }),
-  area: Object.freeze({
-    format: (value) => value.toString().padStart(8),
-  }),
-  density: Object.freeze({
-    format: (value) => value.toString().padStart(8),
-  }),
-  country: Object.freeze({
-    format: (value) => value.toString().padEnd(18),
-  }),
-  percentage: Object.freeze({
-    format: (value) => value.toString().padStart(6),
-  }),
-});
-
-const getLog = (tag) => (...args) => {
+const getLog = (tag) => tap((...args) => {
   console.log(tag);
   console.log(util.inspect(args, { depth: null, colors: true }));
-  return args;
-};
+});
 
 const pipe = (...fns) => (x) =>
   fns.reduce((v, fn) => fn(v), x);
@@ -83,72 +63,96 @@ function curry(fn) {
 
 const map = curry((fn, array) => array.map(fn));
 
+const reduce = curry((fn, initialValue, array) =>
+  array.reduce(fn, initialValue));
+
+const reduceMax = curry((valueGetter, initialValue, array) =>
+  reduce((max, item) => {
+    const value = valueGetter(item);
+    return value > max ? value : max;
+  }, initialValue, array));
+
+const sort = curry((fn, array) => [...array].sort(fn));
+
 const parseRowArraysToTable = (rows) => {
   const [header, ...dataRows] = rows;
 
-  return dataRows.map((row) => header.reduce((acc, key, index) => {
-    if (Number.isNaN(parseInt(row[index], 10))) {
-      acc[key] = row[index];
-    } else {
-      acc[key] = parseInt(row[index], 10);
-    }
+  return map((row) => reduce((acc, key, index) => {
+    const intValue = parseInt(row[index], 10);
+    acc[key] = Number.isNaN(intValue) ? row[index] : intValue;
 
     return acc;
-  }, {}));
+  }, {}, header))(dataRows);
 };
 
-const getTableMax = (table, column) => table.reduce((max, row) => {
-    const value = row[column];
-    return value > max ? value : max;
-  }, table[0][column]);
+const getTableMax = (table, column) =>
+  reduceMax((row) => row[column], table[0][column], table);
 
 const addDensityPercentage = (table) => {
   const maxDensity = getTableMax(table, 'density');
-  return table.map((row) => {
+
+  return map((row) => {
     const densityPercentage = Math.round((row.density * 100) / maxDensity);
+
     return {
       ...row,
       percentage: densityPercentage,
     };
-  });
+  }, table);
 };
 
-const sortTable = (table) => [...table].sort((a, b) => {
-    const densityA = parseInt(a.density, 10);
-    const densityB = parseInt(b.density, 10);
+const getRowDensityNumber = (row) => parseInt(row.density, 10);
+const sortTable = sort((a, b) => {
+    const densityA = getRowDensityNumber(a);
+    const densityB = getRowDensityNumber(b);
     return densityB - densityA;
   });
 
 const rowToString = (columnsConfig) => (row) =>
-  Object.keys(row).reduce((acc, key) => {
+  reduce((acc, key) => {
     const format = columnsConfig[key]?.format ?? identityFn;
     return acc + format(row[key]);
-  }, '');
+  }, '', Object.keys(row));
 
-console.dir(rowToString(columnsConfig)({
-  city: 'New York City',
-  population: 8537673,
-  area: 784,
-  density: 10892,
-  country: 'United States',
-}), { depth: null, colors: true });
+const columnsConfig = Object.freeze({
+  city: Object.freeze({
+    format: (value) => value.toString().padEnd(18),
+  }),
+  population: Object.freeze({
+    format: (value) => value.toString().padStart(10),
+  }),
+  area: Object.freeze({
+    format: (value) => value.toString().padStart(8),
+  }),
+  density: Object.freeze({
+    format: (value) => value.toString().padStart(8),
+  }),
+  country: Object.freeze({
+    format: (value) => value.toString().padStart(18),
+  }),
+  percentage: Object.freeze({
+    format: (value) => value.toString().padStart(6),
+  }),
+});
 
-const tableToString = map(rowToString(columnsConfig));
+const tableToStrings = map(rowToString(columnsConfig));
 
-const getCSVParser = (separator, eolSeparator) => (input) =>
-  parseCSVToArraysOfStrings(input, separator, eolSeparator);
+const printStrings = (strings) => {
+  console.log(strings.join('\n'));
+};
 
-const getMain = (SEPARATOR, EOL) => pipe(
-      getCSVParser(SEPARATOR, EOL),
+const main = pipe(
+      parseCSVToArraysOfStrings,
       parseRowArraysToTable,
       addDensityPercentage,
       sortTable,
-      tableToString,
+      tableToStrings,
+      printStrings,
     );
 
-// getMain(SEPARATOR, EOL)(data);
+main(data);
 
 module.exports = {
-  getMain,
+  main,
   getLog,
 };

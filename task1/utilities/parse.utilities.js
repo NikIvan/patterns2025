@@ -2,8 +2,8 @@
 
 const parseCSVToArraysOfStrings = (
   input,
-  separator,
-  eolSeparator,
+  separator = ',',
+  eolSeparator = '\n',
 ) => {
   const result = input.trim().split(eolSeparator)
     .map(
@@ -12,13 +12,6 @@ const parseCSVToArraysOfStrings = (
         .map((cell) => cell.trim(),
       ),
     );
-
-    console.dir({
-      input,
-      separator,
-      eolSeparator,
-      result,
-    });
 
     return result;
   };
