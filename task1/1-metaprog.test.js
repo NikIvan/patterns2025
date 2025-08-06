@@ -6,7 +6,7 @@ const test = require('node:test');
 const {
   main,
   AGGREGATION_MAX,
-} = require('./1-soc-opt-metaprog.js');
+} = require('./1-metaprog.js');
 
 const {
   numberSorter,

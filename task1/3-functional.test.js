@@ -4,8 +4,12 @@ const assert = require('node:assert');
 const test = require('node:test');
 
 const {
-  getMain,
-} = require('./1-soc-opt-functional.js');
+  main,
+} = require('./3-functional.js');
+
+const printStrings = (strings) => {
+  console.log(strings.join('\n'));
+};
 
 test('Success scenario', () => {
   const data = `city,population,area,density,country
@@ -20,10 +24,7 @@ test('Success scenario', () => {
     New York City,8537673,784,10892,United States
     Bangkok,8280925,1569,5279,Thailand`;
 
-  const SEPARATOR = ',';
-  const EOL = '\n';
-
-  const actualOutput = getMain(SEPARATOR, EOL)(data);
+  const actualOutput = main(data);
 
   const expectedOutput = [
     'Lagos            16060303    1171   13712           Nigeria   100%',
@@ -37,14 +38,12 @@ test('Success scenario', () => {
     'Istanbul         14160467    5461    2593            Turkey    19%',
   ];
 
-  for (const row of actualOutput) {
-    console.log(row);
-  }
+  printStrings(expectedOutput);
 
   assert.strictEqual(Array.isArray(actualOutput), true);
   assert.strictEqual(actualOutput.length, expectedOutput.length);
 
   for (let i = 0; i < actualOutput.length; i += 1) {
-    assert.strictEqual(expectedOutput[i], actualOutput[i]);
+    assert.strictEqual(actualOutput[i], expectedOutput[i]);
   }
 });

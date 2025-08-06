@@ -85,6 +85,12 @@ const parseRowArraysToTable = (rows) => {
   }, {}, header))(dataRows);
 };
 
+const stripLastRow = (table) => {
+  const newTable = [...table];
+  newTable.pop();
+  return newTable;
+};
+
 const getTableMax = (table, column) =>
   reduceMax((row) => row[column], table[0][column], table);
 
@@ -116,10 +122,10 @@ const rowToString = (columnsConfig) => (row) =>
 
 const columnsConfig = Object.freeze({
   city: Object.freeze({
-    format: (value) => value.toString().padEnd(18),
+    format: (value) => value.toString().padEnd(17),
   }),
   population: Object.freeze({
-    format: (value) => value.toString().padStart(10),
+    format: (value) => value.toString().padStart(8),
   }),
   area: Object.freeze({
     format: (value) => value.toString().padStart(8),
@@ -131,23 +137,19 @@ const columnsConfig = Object.freeze({
     format: (value) => value.toString().padStart(18),
   }),
   percentage: Object.freeze({
-    format: (value) => value.toString().padStart(6),
+    format: (value) => `${value.toString().padStart(6)}%`,
   }),
 });
 
 const tableToStrings = map(rowToString(columnsConfig));
 
-const printStrings = (strings) => {
-  console.log(strings.join('\n'));
-};
-
 const main = pipe(
       parseCSVToArraysOfStrings,
       parseRowArraysToTable,
+      stripLastRow,
       addDensityPercentage,
       sortTable,
       tableToStrings,
-      printStrings,
     );
 
 main(data);
