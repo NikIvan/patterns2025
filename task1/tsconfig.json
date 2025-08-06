@@ -11,6 +11,11 @@
     "baseUrl": ".",
     "preserveWatchOutput": true
   },
-  "include": ["**/*.d.ts", "*.js"],
-  "exclude": ["node_modules"]
+  "include": [
+    "**/*.d.ts",
+    "**/*.js"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
